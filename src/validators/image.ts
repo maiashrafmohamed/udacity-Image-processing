@@ -4,9 +4,7 @@ export default {
   resizeImage: [
     query('name')
       .exists()
-      .withMessage('the image name is required')
-      .isString()
-      .withMessage('the name should be string'),
+      .withMessage('the image name is required'),
 
     query('width')
       .exists()
