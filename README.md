@@ -17,6 +17,9 @@ URL: http://localhost:3000/api/image/resize?name=fjord&width=1000&height=1000
 
 ## To Run the app
 
+**To install npm packages**  </br>
+npm install
+
 **To build typeScript**  </br>
 npm run build
 
