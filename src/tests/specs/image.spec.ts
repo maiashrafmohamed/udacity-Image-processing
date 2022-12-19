@@ -1,96 +1,86 @@
-import supertest from 'supertest';
-import app from '../../app';
+import fs from 'fs';
+import sharp from 'sharp';
+import * as imageSrv from '../../services/image';
+import { ImageResize } from '../../models/image';
+import { Request, Response } from 'express';
 
-const request: supertest.SuperTest<supertest.Test> = supertest(app);
+describe('Image Service', () => {
+  describe('resize Image', () => {
+    jasmine.createSpy('sharp', () => () => ({
+      resize: () => ({}),
+      toFile: () => ({})
+    }));
+    let imageData: ImageResize = {
+      name: 'sea',
+      height: 500,
+      width: 200
+    };
+    const response = ({
+      sendFile: () => {
+        return { end: () => {} };
+      },
+      status: () => {
+        return {
+          json: () => {
+            return { end: () => {} };
+          }
+        };
+      }
+    } as unknown) as Response;
 
-describe('Resize Image endpoint', () => {
-  describe('check queryparams validation', () => {
-    it('When no query params passed to api then, the api shoud return status 400 with all errors', async () => {
-      const response: supertest.Response = await request.get('/api/image');
-      expect(response.status).toBe(400);
-      expect(response.body.error).toEqual([
-        'the image name is required',
-        'image width is required',
-        'The image width should be number',
-        'image height is required',
-        'The image height should be number'
-      ]);
+    let req = ({
+      query: imageData
+    } as unknown) as Request;
+
+    it('get the image resize path when call getResizedImagePath', () => {
+      const imageData: ImageResize = {
+        name: 'sky',
+        height: 500,
+        width: 200
+      };
+      const path: string = imageSrv.getResizedImagePath(imageData);
+
+      expect(path).toContain('images/resized-images/sky-200-500.jpg');
     });
 
-    it('When the name query params is not exist then, the api shoud return status 400 with errors name is required', async () => {
-      const response: supertest.Response = await request.get('/api/image?width=500&height=200');
-      expect(response.status).toBe(400);
-      expect(response.body.error).toEqual(['the image name is required']);
+    it('get the image path when call getAndCheckImagePath', () => {
+      spyOn(fs, 'existsSync').and.returnValue(true);
+
+      const imageData: ImageResize = {
+        name: 'fjord',
+        height: 500,
+        width: 200
+      };
+      const path: string = imageSrv.getAndCheckImagePath(imageData.name);
+
+      expect(fs.existsSync).toHaveBeenCalled();
+      expect(path).toContain('images/fjord.jpg');
     });
 
-    it('When the width query params is not exist then, the api shoud return status 400 with errors width is required and shoud be number', async () => {
-      const response = await request.get(
-        '/api/image?name=imageName&height=200'
-      );
-      expect(response.status).toBe(400);
-      expect(response.body.error).toEqual([
-        'image width is required',
-        'The image width should be number'
-      ]);
+    it('when the image path is not exist return empty path', () => {
+      spyOn(fs, 'existsSync').and.returnValue(false);
+
+      const imageData: ImageResize = {
+        name: 'sea',
+        height: 500,
+        width: 200
+      };
+      const path: string = imageSrv.getAndCheckImagePath(imageData.name);
+      expect(fs.existsSync).toHaveBeenCalled();
+
+      expect(path).toBe('');
     });
 
-    it('When the width query params value is not a number then, the api shoud return status 400 with errors width shoud be number', async () => {
-      const response: supertest.Response = await request.get(
-        '/api/image?name=imageName&width=xx&height=200'
-      );
-      expect(response.status).toBe(400);
-      expect(response.body.error).toEqual(['The image width should be number']);
+    it('should return the resized cached image and not use resize by sharp ', () => {
+      spyOn(response, 'sendFile').and.callThrough();
+      spyOn(fs, 'existsSync').and.returnValue(true);
+      spyOn(imageSrv, 'resizeImagesBySharp').and.callThrough();
+
+      imageSrv.resizeImage(req, response);
+
+      expect(response.sendFile).toHaveBeenCalled();
+      expect(fs.existsSync).toHaveBeenCalled();
+      expect(imageSrv.resizeImagesBySharp).not.toHaveBeenCalled();
     });
-
-    it('When the height query params is not exist then, the api shoud return status 400 with errors height is required and shoud be number', async () => {
-      const response: supertest.Response = await request.get('/api/image?name=imageName&width=200');
-      expect(response.status).toBe(400);
-      expect(response.body.error).toEqual([
-        'image height is required',
-        'The image height should be number'
-      ]);
-    });
-
-    it('When the height query params value is not a number then, the api shoud return status 400 with errors height shoud be number', async () => {
-      const response: supertest.Response = await request.get(
-        '/api/image?name=imageName&width=500&height=xx'
-      );
-      expect(response.status).toBe(400);
-      expect(response.body.error).toEqual([
-        'The image height should be number'
-      ]);
-    });
-  });
-
-  describe('check resize functionality', () => {
-    it('When the image is not on the server, then shoud return status 404 with error image not found', async () => {
-        const response: supertest.Response = await request.get(
-          '/api/image?name=imageName&height=200&width=200'
-        );
-        expect(response.status).toBe(404);
-        expect(response.body.error).toBe('Image not found');
-      });
-
-      it('When the image is not resized before, then shoud return status 200 and add image in resized-images folder', async () => {
-        const response: supertest.Response = await request.get(
-          '/api/image?name=fjord&width=500&height=800'
-        );
-        expect(response.status).toBe(200);
-        // expect(response.body.error).toBe('Image not found');
-      });
-
-      it('When the image is resized before, then shoud return status 200 and get the image in resized-images folder', async () => {
-        const response: supertest.Response = await request.get(
-          '/api/image?name=fjord&width=500&height=800'
-        );
-        expect(response.status).toBe(200);
-        // expect(response.body.error).toBe('Image not found');
-      });
-
-
   });
 });
-
-
-
-  

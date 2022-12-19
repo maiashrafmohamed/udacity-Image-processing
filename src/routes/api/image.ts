@@ -1,10 +1,9 @@
 import express from 'express';
-import imageController from '../../controllers/image';
+import { resizeImage } from '../../services/image';
 import imageValidation from '../../validators/image';
-import asyncHandler from 'express-async-handler';
 
 const router = express.Router();
 
-router.get('/', imageValidation.resizeImage, imageController.resizeImage);
+router.get('/resize', imageValidation.image.resizeImage, resizeImage);
 
 export default router;
